@@ -295,7 +295,7 @@ func traverseSchools(page, index int) {
 func main() {
 	parser := argparse.NewParser("myschool", "scrape NAPLAN scores from myschool.com.au")
 	pstate := parser.String("s", "state", &argparse.Options{Required: false, Default: "QLD", Help: "The state to crawl"})
-	pchrome := parser.String("c", "chrome", &argparse.Options{Required: false, Default: "C:\\Users\\iamli\\source\\repos\\myschool-go\\chromedriver.exe", Help: "Chrome driver path"})
+	pchrome := parser.String("c", "chrome", &argparse.Options{Required: false, Default: "chromedriver.exe", Help: "Chrome driver path"})
 	puser := parser.String("u", "user", &argparse.Options{Required: true, Help: "Database username"})
 	ppass := parser.String("p", "pass", &argparse.Options{Required: true, Help: "Database password"})
 	phost := parser.String("h", "host", &argparse.Options{Required: false, Default: "localhost", Help: "Database server address"})
