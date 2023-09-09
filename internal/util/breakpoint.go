@@ -25,5 +25,6 @@ func LoadBreakpoint() (int, int) {
 }
 
 func SaveBreakpoint(page, index int) {
+	fmt.Println("saving breakpoint on page & index:", page, index)
 	os.WriteFile("breakpoint", []byte(fmt.Sprintf("%d,%d", page, index)), os.ModePerm)
 }

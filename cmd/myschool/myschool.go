@@ -1,7 +1,9 @@
 package main
 
 import (
+	"crypto/rand"
 	"fmt"
+	"math/big"
 	"myschool/internal/model"
 	"myschool/internal/util"
 	"os"
@@ -13,6 +15,7 @@ import (
 	"github.com/tebeka/selenium"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 const MYSCHOOL_URL = "https://www.myschool.edu.au"
@@ -29,35 +32,6 @@ func panicIfErr(err error) {
 	panic(err)
 }
 
-func main() {
-	parser := argparse.NewParser("myschool", "scrape NAPLAN scores from myschool.com.au")
-	pstate := parser.String("s", "state", &argparse.Options{Required: false, Default: "QLD", Help: "The state to crawl"})
-	pchrome := parser.String("c", "chrome", &argparse.Options{Required: false, Default: "C:\\Users\\iamli\\source\\repos\\myschool-go\\chromedriver.exe", Help: "Chrome driver path"})
-	err := parser.Parse(os.Args)
-	panicIfErr(err)
-
-	db, err = gorm.Open(mysql.Open("linx:qwer1234@tcp(localhost)/score?charset=utf8mb4&parseTime=True"), &gorm.Config{})
-	panicIfErr(err)
-
-	db.AutoMigrate(&model.Score{})
-
-	service, err := selenium.NewChromeDriverService(*pchrome, 4444)
-	panicIfErr(err)
-	defer service.Stop()
-
-	caps := selenium.Capabilities{"browserName": "chrome"}
-	browser, err = selenium.NewRemote(caps, "")
-	panicIfErr(err)
-	defer browser.Quit()
-
-	browser.Get(MYSCHOOL_URL)
-	browser.MaximizeWindow("")
-
-	acceptTNC()
-	selectState(*pstate)
-	traverseSchools(jump2Breakpoint())
-}
-
 func acceptTNC() {
 	checkbox, _ := browser.FindElement(selenium.ByID, "checkBoxTou")
 	acceptBtn, _ := browser.FindElement(selenium.ByID, "acceptButton")
@@ -66,23 +40,9 @@ func acceptTNC() {
 }
 
 func selectState(state string) {
-	targetState := "state-" + strings.ToLower(state)
 	browser.SetImplicitWaitTimeout(5 * time.Second)
-	dropdown, _ := browser.FindElement(selenium.ByID, "dropdown-2")
-	dropdown.Click()
-	states, _ := dropdown.FindElements(selenium.ByTagName, "li")
-
-	for _, s := range states {
-		label, _ := s.FindElement(selenium.ByTagName, "label")
-		curr_state, _ := label.GetAttribute("for")
-		if strings.ToLower(curr_state) == targetState {
-			span, _ := label.FindElement(selenium.ByTagName, "span")
-			span.Click()
-			break
-		}
-	}
-	goBtn, _ := browser.FindElement(selenium.ByID, "go")
-	goBtn.Click()
+	browser.FindElement(selenium.ByID, "dropdown-2")
+	browser.Get(MYSCHOOL_URL + "/school-search?FormPosted=True&SchoolSearchQuery=&SchoolSector=&SchoolType=&State=" + state)
 }
 
 func jump2Breakpoint() (int, int) {
@@ -116,7 +76,7 @@ func getComparativeNumbers(element selenium.WebElement) (int, int, int, int, int
 		}
 	}
 
-	cols, err := element.FindElements(selenium.ByXPATH, "./span/table/tbody/tr[@class='sim-all-row']/td")
+	cols, err := element.FindElements(selenium.ByXPATH, "./span/table/tbody/tr[@class='sim-all-row'][1]/td")
 	if err == nil && len(cols) >= 2 {
 		allDiv, err := cols[1].FindElement(selenium.ByXPATH, "./span[@class='sim-avg']")
 		if err == nil {
@@ -126,21 +86,21 @@ func getComparativeNumbers(element selenium.WebElement) (int, int, int, int, int
 			}
 		}
 
-		simDiv, err := cols[0].FindElement(selenium.ByXPATH, "./span[@class='sim-avg']")
-		if err == nil {
-			simAttr, err := simDiv.Text()
-			if err == nil {
-				simAvg, _ = strconv.Atoi(simAttr)
-			}
-		}
+		spans, _ := cols[0].FindElements(selenium.ByTagName, "span")
+		for _, span := range spans {
+			cls, _ := span.GetAttribute("class")
+			text, _ := span.Text()
 
-		simsDiv, err := cols[0].FindElement(selenium.ByXPATH, "./span[@class='err']")
-		if err == nil {
-			simsAttr, err := simsDiv.Text()
-			if err == nil {
-				sims := strings.Split(simsAttr, " - ")
-				simLow, _ = strconv.Atoi(sims[0])
-				simHigh, _ = strconv.Atoi(sims[1])
+			if cls == "sim-avg" {
+				simAvg, _ = strconv.Atoi(text)
+			} else if cls == "err" {
+				sims := strings.Split(text, " - ")
+				if len(sims) > 0 {
+					simLow, _ = strconv.Atoi(sims[0])
+				}
+				if len(sims) > 1 {
+					simHigh, _ = strconv.Atoi(sims[1])
+				}
 			}
 		}
 	}
@@ -166,12 +126,15 @@ func traverseSchools(page, index int) {
 		}
 
 		for _, link := range schoolLinks {
+			browser.DeleteAllCookies()
 			browser.ExecuteScript("window.open()", nil)
 			hanldes, _ := browser.WindowHandles()
 			browser.SwitchWindow(hanldes[len(hanldes)-1])
-			browser.Get(MYSCHOOL_URL + link)
 
 			browser.SetImplicitWaitTimeout(300 * time.Second)
+			browser.Get(MYSCHOOL_URL + link)
+			acceptTNC()
+
 			topSection, _ := browser.FindElement(selenium.ByCSSSelector, ".topsection-wrapper")
 			headerSection, _ := topSection.FindElement(selenium.ByTagName, "h1")
 			headerText, _ := headerSection.Text()
@@ -209,11 +172,6 @@ func traverseSchools(page, index int) {
 
 			url, _ := browser.CurrentURL()
 			browser.Get(url + "/naplan/results")
-			// naplanMenuBase, _ := browser.FindElement(selenium.ByCSSSelector, "ul.flex.w-100.dropdown-men")
-			// naplanMenuItems, _ := naplanMenuBase.FindElements(selenium.ByTagName, "li")
-			// naplanMenuItems[1].Click()
-			// naplanSubMenuItems, _ := naplanMenuItems[1].FindElements(selenium.ByTagName, "li")
-			// naplanSubMenuItems[0].Click()
 
 			browser.SetImplicitWaitTimeout(time.Second)
 			owls, _ := browser.FindElements(selenium.ByCSSSelector, ".owl-item")
@@ -296,18 +254,21 @@ func traverseSchools(page, index int) {
 						NumeracySimHigh: nSimHigh,
 						NumeracySimAvg:  nSimAvg,
 						NumeracyAllAvg:  nAllAvg,
+						Total:           reading + writing + spelling + grammar + numeracy,
 					})
 				}
 
-				db.CreateInBatches(&scores, 10)
+				db.Clauses(clause.OnConflict{DoNothing: true}).CreateInBatches(&scores, 10)
 			}
 			util.SaveBreakpoint(page, link_index)
 
 			browser.Close()
 			handles, _ := browser.WindowHandles()
 			browser.SwitchWindow(handles[0])
-			time.Sleep(time.Second)
 			link_index += 1
+
+			x, _ := rand.Int(rand.Reader, big.NewInt(5))
+			time.Sleep(time.Duration(x.Int64()) * time.Second)
 		}
 
 		pages, _ := browser.FindElement(selenium.ByCSSSelector, ".pagination")
@@ -317,16 +278,49 @@ func traverseSchools(page, index int) {
 		}
 
 		nextPage := aTags[len(aTags)-1]
-		arrows, _ := nextPage.FindElements(selenium.ByXPATH, "./i[@class='pag_arrow_right']")
+		arrows, err := nextPage.FindElements(selenium.ByXPATH, "./i[@class='pag_arrow_right']")
 		if len(arrows) > 0 {
 			href, _ := nextPage.GetAttribute("href")
-			browser.Get(href)
-			browser.WaitWithTimeoutAndInterval(func(driver selenium.WebDriver) (bool, error) {
-				resultSection, _ := driver.FindElement(selenium.ByCSSSelector, ".showing-results")
-				return resultSection.IsDisplayed()
-			}, 300*time.Second, 200*time.Millisecond)
+			browser.SetImplicitWaitTimeout(300 * time.Second)
+			browser.Get(MYSCHOOL_URL + href)
+			browser.FindElement(selenium.ByCSSSelector, ".showing-results")
+		} else {
+			panic(err)
 		}
 		page += 1
 		link_index = 0
 	}
+}
+
+func main() {
+	parser := argparse.NewParser("myschool", "scrape NAPLAN scores from myschool.com.au")
+	pstate := parser.String("s", "state", &argparse.Options{Required: false, Default: "QLD", Help: "The state to crawl"})
+	pchrome := parser.String("c", "chrome", &argparse.Options{Required: false, Default: "C:\\Users\\iamli\\source\\repos\\myschool-go\\chromedriver.exe", Help: "Chrome driver path"})
+	puser := parser.String("u", "user", &argparse.Options{Required: true, Help: "Database username"})
+	ppass := parser.String("p", "pass", &argparse.Options{Required: true, Help: "Database password"})
+	phost := parser.String("h", "host", &argparse.Options{Required: false, Default: "localhost", Help: "Database server address"})
+	pdb := parser.String("d", "database", &argparse.Options{Required: false, Default: "score", Help: "Default database"})
+	err := parser.Parse(os.Args)
+	panicIfErr(err)
+
+	db, err = gorm.Open(mysql.Open(fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8mb4&parseTime=True", *puser, *ppass, *phost, *pdb)), &gorm.Config{})
+	panicIfErr(err)
+
+	db.AutoMigrate(&model.Score{})
+
+	service, err := selenium.NewChromeDriverService(*pchrome, 4444)
+	panicIfErr(err)
+	defer service.Stop()
+
+	caps := selenium.Capabilities{"browserName": "chrome"}
+	browser, err = selenium.NewRemote(caps, "")
+	panicIfErr(err)
+	defer browser.Quit()
+
+	browser.Get(MYSCHOOL_URL)
+	browser.MaximizeWindow("")
+
+	acceptTNC()
+	selectState(*pstate)
+	traverseSchools(jump2Breakpoint())
 }
