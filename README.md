@@ -13,4 +13,4 @@
 - Build from source:
   - `go mod tidy`
   - `go build -o myschool .\cmd\myschool\myschool.go`
-  - `.\myschool -c .\chromedriver.exe -s qld`
+  - `.\myschool -c .\chromedriver.exe -s qld -o localhost -u myuser -p mypass -d mydb`

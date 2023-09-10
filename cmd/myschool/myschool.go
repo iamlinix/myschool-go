@@ -298,7 +298,7 @@ func main() {
 	pchrome := parser.String("c", "chrome", &argparse.Options{Required: false, Default: "chromedriver.exe", Help: "Chrome driver path"})
 	puser := parser.String("u", "user", &argparse.Options{Required: true, Help: "Database username"})
 	ppass := parser.String("p", "pass", &argparse.Options{Required: true, Help: "Database password"})
-	phost := parser.String("h", "host", &argparse.Options{Required: false, Default: "localhost", Help: "Database server address"})
+	phost := parser.String("o", "host", &argparse.Options{Required: false, Default: "localhost", Help: "Database server address"})
 	pdb := parser.String("d", "database", &argparse.Options{Required: false, Default: "score", Help: "Default database"})
 	err := parser.Parse(os.Args)
 	panicIfErr(err)
