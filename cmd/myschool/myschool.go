@@ -142,7 +142,7 @@ func traverseSchools(page, index int) {
 
 			schoolName := strings.Trim(headers[0], " ")
 			suburb := strings.Trim(headers[1], " ")
-			state := strings.Trim(headers[2], " ")
+			state := strings.Trim(headers[len(headers)-1], " ")
 
 			t := time.Now()
 			var factDiv selenium.WebElement
