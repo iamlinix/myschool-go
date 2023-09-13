@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/rand"
 	"fmt"
+	"log"
 	"math/big"
 	"myschool/internal/model"
 	"myschool/internal/util"
@@ -24,6 +25,9 @@ const MYSCHOOL_URL = "https://www.myschool.edu.au"
 var (
 	db      *gorm.DB
 	browser selenium.WebDriver
+
+	QuitAfterSeconds = 0
+	QuitAfterSchools = 0
 )
 
 func panicIfErr(err error) {
@@ -111,6 +115,8 @@ func getComparativeNumbers(element selenium.WebElement) (int, int, int, int, int
 
 func traverseSchools(page, index int) {
 	link_index := index
+	start_timestamp := time.Now()
+	schoolsScraped := 0
 	for {
 		browser.SetImplicitWaitTimeout(300 * time.Second)
 		schools, _ := browser.FindElements(selenium.ByCSSSelector, ".school-section")
@@ -262,6 +268,18 @@ func traverseSchools(page, index int) {
 				db.Clauses(clause.OnConflict{DoNothing: true}).CreateInBatches(&scores, 10)
 			}
 			util.SaveBreakpoint(page, link_index)
+			schoolsScraped++
+
+			if QuitAfterSchools > 0 && schoolsScraped >= QuitAfterSchools {
+				log.Printf("Have scraped %d schools, let's call it a day, ciao~", QuitAfterSchools)
+				return
+			}
+
+			timeElapsed := int(time.Since(start_timestamp).Seconds())
+			if QuitAfterSeconds > 0 && timeElapsed >= QuitAfterSeconds {
+				log.Printf("Have been running for %d seconds, phew, aligator~", timeElapsed)
+				return
+			}
 
 			browser.Close()
 			handles, _ := browser.WindowHandles()
@@ -302,8 +320,30 @@ func main() {
 	phost := parser.String("o", "host", &argparse.Options{Required: false, Default: "localhost", Help: "Database server address"})
 	pdb := parser.String("d", "database", &argparse.Options{Required: false, Default: "score", Help: "Default database"})
 	pheadless := parser.Flag("l", "headless", &argparse.Options{Required: false, Help: "Run Chrome in headless mode"})
+	pmt := parser.Int("t", "max-time", &argparse.Options{Required: false, Default: 0, Help: "Quit the program after X seconds"})
+	pmn := parser.Int("n", "max-count", &argparse.Options{Required: false, Default: 0, Help: "Quit the program after have scraped X schools"})
 	err := parser.Parse(os.Args)
 	panicIfErr(err)
+
+	QuitAfterSeconds = *pmt
+	QuitAfterSchools = *pmn
+
+	prologue := []string{}
+	if QuitAfterSchools > 0 {
+		prologue = append(prologue, fmt.Sprintf("has scraped %d schools", QuitAfterSchools))
+	}
+	if QuitAfterSeconds > 0 {
+		if QuitAfterSchools > 0 {
+			prologue = append(prologue, "or")
+		}
+		prologue = append(prologue, fmt.Sprintf("has run for about %d seconds", QuitAfterSeconds))
+	}
+	if len(prologue) > 1 {
+		prologue = append(prologue, "which ever comes first")
+	}
+	if len(prologue) > 0 {
+		log.Printf("The program will automatically quit after it %s", strings.Join(prologue, ", "))
+	}
 
 	db, err = gorm.Open(mysql.Open(fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8mb4&parseTime=True", *puser, *ppass, *phost, *pdb)), &gorm.Config{})
 	panicIfErr(err)
