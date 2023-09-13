@@ -13,6 +13,7 @@ import (
 
 	"github.com/akamensky/argparse"
 	"github.com/tebeka/selenium"
+	"github.com/tebeka/selenium/chrome"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -300,6 +301,7 @@ func main() {
 	ppass := parser.String("p", "pass", &argparse.Options{Required: true, Help: "Database password"})
 	phost := parser.String("o", "host", &argparse.Options{Required: false, Default: "localhost", Help: "Database server address"})
 	pdb := parser.String("d", "database", &argparse.Options{Required: false, Default: "score", Help: "Default database"})
+	pheadless := parser.Flag("l", "headless", &argparse.Options{Required: false, Help: "Run Chrome in headless mode"})
 	err := parser.Parse(os.Args)
 	panicIfErr(err)
 
@@ -313,6 +315,18 @@ func main() {
 	defer service.Stop()
 
 	caps := selenium.Capabilities{"browserName": "chrome"}
+	if *pheadless {
+		caps.AddChrome(chrome.Capabilities{
+			Args: []string{
+				"--headless",
+				"--ignore-certificate-errors",
+				"--no-sandbox",
+				"--disable-gpu",
+			},
+			W3C: true,
+		})
+	}
+
 	browser, err = selenium.NewRemote(caps, "")
 	panicIfErr(err)
 	defer browser.Quit()

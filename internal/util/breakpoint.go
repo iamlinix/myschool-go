@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func LoadBreakpoint() (int, int) {
@@ -25,6 +26,6 @@ func LoadBreakpoint() (int, int) {
 }
 
 func SaveBreakpoint(page, index int) {
-	fmt.Println("saving breakpoint on page & index:", page, index)
+	fmt.Println(time.Now(), "saving breakpoint on page & index:", page, index)
 	os.WriteFile("breakpoint", []byte(fmt.Sprintf("%d,%d", page, index)), os.ModePerm)
 }
