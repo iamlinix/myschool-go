@@ -9,7 +9,7 @@ type Score struct {
 	Suburb          string `gorm:"column:suburb;type:varchar(32);uniqueIndex:score_school_suburb_state_year_grade"`
 	State           string `gorm:"column:state;type:char(3);uniqueIndex:score_school_suburb_state_year_grade"`
 	Grade           string `gorm:"column:grade;type:varchar(8);uniqueIndex:score_school_suburb_state_year_grade"`
-	YearRange       string `gorm:"column:year_range;type:varchar(8)"`
+	YearRange       string `gorm:"column:year_range;type:varchar(16)"`
 	Year            int    `gorm:"column:year;type:int;uniqueIndex:score_school_suburb_state_year_grade"`
 	Reading         int    `gorm:"column:reading;type:int"`
 	ReadingLow      int    `gorm:"column:reading_low;type:int"`
