@@ -146,10 +146,11 @@ func traverseSchools(page, index int) {
 			headerSection, _ := topSection.FindElement(selenium.ByTagName, "h1")
 			headerText, _ := headerSection.Text()
 			headers := strings.Split(headerText, ",")
+			headerLen := len(headers)
 
-			schoolName := strings.Trim(headers[0], " ")
-			suburb := strings.Trim(headers[1], " ")
-			state := strings.Trim(headers[len(headers)-1], " ")
+			schoolName := strings.Trim(strings.Join(headers[0:headerLen-2], ", "), " ")
+			suburb := strings.Trim(headers[headerLen-2], " ")
+			state := strings.Trim(headers[headerLen-1], " ")
 
 			t := time.Now()
 			var factDiv selenium.WebElement
